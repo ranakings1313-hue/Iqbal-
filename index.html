@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SONLANDER</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@700&display=swap');
+
+        :root {
+            --primary: #ff5722;
+            --secondary: #ffc107;
+            --dark: #1a1a2e;
+            --light: #f5f5f5;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        body {
+            background-color: var(--dark);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI Overlays */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(26, 26, 46, 0.95);
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Logo */
+        .logo-container {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .logo-img {
+            max-width: 300px;
+            max-height: 150px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 15px rgba(255, 87, 34, 0.6));
+            font-family: 'Bangers', cursive;
+            font-size: 4rem;
+            color: var(--secondary);
+        }
+
+        /* Buttons */
+        .btn {
+            background: linear-gradient(180deg, var(--secondary) 0%, var(--primary) 100%);
+            color: white;
+            border: 3px solid #fff;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 50px;
+            margin: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 6px 0 #b23c14, 0 10px 10px rgba(0,0,0,0.5);
+            transition: all 0.1s;
+            font-family: 'Bangers', cursive;
+            letter-spacing: 2px;
+            min-width: 250px;
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 #b23c14, 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .btn-small {
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            min-width: unset;
+        }
+
+        /* Settings */
+        .settings-panel {
+            background: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            color: #333;
+            width: 90%;
+            max-width: 400px;
+            text-align: left;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        input[type="range"] {
+            width: 120px;
+        }
+
+        /* Game UI */
+        #game-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .hud-item {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .hud-buttons {
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Modals */
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 30px;
+            text-align: center;
+            border: 5px solid var(--primary);
+            box-shadow: 0 0 50px rgba(255, 87, 34, 0.5);
+            color: #333;
+        }
+
+        .stars {
+            font-size: 4rem;
+            margin: 20px 0;
+            color: #ddd;
+        }
+        
+        .star.filled {
+            color: var(--secondary);
+            text-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+        }
+
+        /* Level Select */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 20px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .level-btn {
+            background: var(--primary);
+            color: white;
+            aspect-ratio: 1;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: 4px solid white;
+            box-shadow: 0 5px 0 #b23c14;
+            position: relative;
+        }
+
+        .level-btn.locked {
+            background: #555;
+            box-shadow: 0 5px 0 #333;
+            cursor: not-allowed;
+        }
+
+        .level-btn .stars-small {
+            font-size: 1rem;
+            margin-top: 5px;
+        }
+
+        /* Tutorial Toast */
+        #tutorial {
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--dark);
+            z-index: 6;
+            pointer-events: none;
+            animation: float 2s infinite alternate ease-in-out;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        @keyframes float {
+            0% { transform: translate(-50%, 0); }
+            100% { transform: translate(-50%, -10px); }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .btn { min-width: 200px; font-size: 1.2rem; padding: 12px 30px; }
+            .logo-img { max-width: 250px; }
+            .hud-item { font-size: 1.2rem; padding: 5px 15px; }
+            .modal-content { padding: 20px; width: 90%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas for Physics -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- In-Game HUD -->
+    <div id="game-ui" class="hidden">
+        <div class="hud-item" id="enemies-left">Enemies: 0</div>
+        <div class="hud-buttons">
+            <div class="btn btn-small" onclick="togglePause()">⏸</div>
+            <div class="btn btn-small" onclick="restartLevel()">🔄</div>
+        </div>
+    </div>
+    
+    <div id="tutorial" class="hidden">Drag the Player back to shoot!</div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen">
+        <div class="logo-container">
+            <img src="logo.png" alt="SONLANDER" class="logo-img" onerror="this.outerHTML='<h1>SONLANDER</h1>'">
+        </div>
+        <button class="btn" onclick="startGame()">PLAY GAME</button>
+        <button class="btn" onclick="showScreen('level-select')">LEVEL SELECT</button>
+        <button class="btn" onclick="showScreen('settings')">SETTINGS</button>
+        <button class="btn" onclick="showScreen('how-to')">HOW TO PLAY</button>
+        <button class="btn" onclick="showScreen('about')">ABOUT</button>
+    </div>
+
+    <!-- Level Select -->
+    <div id="level-select" class="screen hidden">
+        <h1 style="color:white; font-family:'Bangers'; font-size:3rem; margin-bottom:20px;">SELECT LEVEL</h1>
+        <div class="level-grid" id="level-grid"></div>
+        <button class="btn" style="margin-top:30px;" onclick="showScreen('main-menu')">BACK</button>
+    </div>
+
+    <!-- Settings -->
+    <div id="settings" class="screen hidden">
+        <div class="settings-panel">
+            <h2 style="text-align:center; margin-bottom:20px;">SETTINGS</h2>
+            <div class="setting-item">
+                <span>Music</span>
+                <input type="checkbox" id="music-toggle" checked onchange="updateSettings()">
+            </div>
+            <div class="setting-item">
+                <span>Music Volume</span>
+                <input type="range" id="music-vol" min="0" max="1" step="0.1" value="0.5" onchange="updateSettings()">
+            </div>
+            <div class="setting-item">
+                <span>Sound Effects</span>
+                <input type="checkbox" id="sfx-toggle" checked onchange="updateSettings()">
+            </div>
+            <div class="setting-item">
+                <span>SFX Volume</span>
+                <input type="range" id="sfx-vol" min="0" max="1" step="0.1" value="0.5" onchange="updateSettings()">
+            </div>
+            <div class="setting-item">
+                <span>Screen Shake</span>
+                <input type="checkbox" id="shake-toggle" checked onchange="updateSettings()">
+            </div>
+            <button class="btn btn-small" style="width:100%; margin-top:15px;" onclick="showScreen('main-menu')">BACK</button>
+            <button class="btn btn-small" style="width:100%; margin-top:10px; background:#d32f2f; box-shadow:0 6px 0 #9a0007;" onclick="resetProgress()">RESET PROGRESS</button>
+        </div>
+    </div>
+
+    <!-- How to Play -->
+    <div id="how-to" class="screen hidden">
+        <div class="settings-panel" style="text-align:center;">
+            <h2>HOW TO PLAY</h2>
+            <p style="margin: 15px 0; line-height: 1.6;">
+                <b>1.</b> Drag your player backwards on the slingshot.<br>
+                <b>2.</b> Release to launch.<br>
+                <b>3.</b> Click or Tap mid-flight to activate special ability!<br>
+                <b>4.</b> Destroy all enemies to win.<br>
+                <b>5.</b> Watch out for explosive TNT boxes!
+            </p>
+            <button class="btn btn-small" style="width:100%;" onclick="showScreen('main-menu')">GOT IT</button>
+        </div>
+    </div>
+
+    <!-- About -->
+    <div id="about" class="screen hidden">
+        <div class="settings-panel" style="text-align:center;">
+            <h2>ABOUT SONLANDER</h2>
+            <p style="margin: 15px 0;">Version 1.0.0</p>
+            <p style="margin: 15px 0; font-size: 0.9rem;">A physics-based slingshot game.<br>Created with Matter.js</p>
+            <button class="btn btn-small" style="width:100%;" onclick="showScreen('main-menu')">BACK</button>
+        </div>
+    </div>
+
+    <!-- Victory / Defeat Modal -->
+    <div id="end-screen" class="screen hidden" style="background:rgba(0,0,0,0.8);">
+        <div class="modal-content">
+            <h1 id="end-title" style="font-family:'Bangers'; font-size:3rem; color:var(--primary);">LEVEL COMPLETE!</h1>
+            <div class="stars" id="end-stars">
+                <span class="star">★</span><span class="star">★</span><span class="star">★</span>
+            </div>
+            <p id="end-score" style="font-size:1.5rem; font-weight:bold;">Score: 0</p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button class="btn btn-small" onclick="retryLevel()">RETRY</button>
+                <button class="btn btn-small" id="next-btn" onclick="nextLevel()">NEXT</button>
+                <button class="btn btn-small" onclick="showScreen('level-select')">MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="screen hidden" style="background:rgba(0,0,0,0.8);">
+        <div class="modal-content">
+            <h1 style="font-family:'Bangers'; font-size:2.5rem; color:var(--primary);">PAUSED</h1>
+            <button class="btn btn-small" style="width:200px; margin-top:15px;" onclick="togglePause()">RESUME</button>
+            <button class="btn btn-small" style="width:200px;" onclick="restartLevel()">RESTART</button>
+            <button class="btn btn-small" style="width:200px;" onclick="showScreen('main-menu'); togglePause()">MAIN MENU</button>
+        </div>
+    </div>
+
+    <script>
+        const Engine = Matter.Engine,
+              Render = Matter.Render,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Constraint = Matter.Constraint,
+              Events = Matter.Events,
+              Vector = Matter.Vector,
+              Body = Matter.Body;
+
+        const canvas = document.getElementById('gameCanvas');
+        let engine, world, render;
+        let currentLevel = 1;
+        let maxUnlockedLevel = parseInt(localStorage.getItem('sonlander_unlocked')) || 1;
+        let levelScores = JSON.parse(localStorage.getItem('sonlander_scores')) || {};
+        let levelStars = JSON.parse(localStorage.getItem('sonlander_stars')) || {};
+        
+        let state = {
+            isPlaying: false,
+            isPaused: false,
+            birdsLeft: 0,
+            enemiesLeft: 0,
+            activeBird: null,
+            isDragging: false,
+            canUseAbility: false,
+            score: 0,
+            isScreenShaking: false
+        };
+
+        let settings = JSON.parse(localStorage.getItem('sonlander_settings')) || {
+            music: true,
+            musicVol: 0.5,
+            sfx: true,
+            sfxVol: 0.5,
+            shake: true
+        };
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (!settings.sfx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (type === 'launch') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(settings.sfxVol, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'hit') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(settings.sfxVol, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(settings.sfxVol, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            }
+        }
+
+        const levels = {
+            1: { name: "Beginner Valley", birds: 3, enemies: 1, build: (w, h) => [
+                { type: 'wood', x: w * 0.8, y: h - 40, w: 20, h: 80 },
+                { type: 'wood', x: w * 0.9, y: h - 40, w: 20, h: 80 },
+                { type: 'wood', x: w * 0.85, y: h - 90, w: 100, h: 20 },
+                { type: 'enemy', x: w * 0.85, y: h - 120, r: 15 }
+            ]},
+            2: { name: "Wooden Fortress", birds: 4, enemies: 2, build: (w, h) => [
+                { type: 'wood', x: w * 0.75, y: h - 40, w: 20, h: 80 },
+                { type: 'wood', x: w * 0.85, y: h - 40, w: 20, h: 80 },
+                { type: 'wood', x: w * 0.95, y: h - 40, w: 20, h: 80 },
+                { type: 'wood', x: w * 0.85, y: h - 90, w: 140, h: 20 },
+                { type: 'enemy', x: w * 0.8, y: h - 120, r: 15 },
+                { type: 'enemy', x: w * 0.9, y: h - 120, r: 15 }
+            ]},
+            3: { name: "Stone Castle", birds: 4, enemies: 2, build: (w, h) => [
+                { type: 'stone', x: w * 0.75, y: h - 40, w: 30, h: 80 },
+                { type: 'stone', x: w * 0.95, y: h - 40, w: 30, h: 80 },
+                { type: 'stone', x: w * 0.85, y: h - 90, w: 160, h: 20 },
+                { type: 'wood', x: w * 0.85, y: h - 120, w: 20, h: 40 },
+                { type: 'enemy', x: w * 0.85, y: h - 150, r: 15 },
+                { type: 'enemy', x: w * 0.8, y: h - 120, r: 15 }
+            ]},
+            4: { name: "Explosive Challenge", birds: 3, enemies: 2, build: (w, h) => [
+                { type: 'stone', x: w * 0.75, y: h - 40, w: 20, h: 80 },
+                { type: 'tnt', x: w * 0.85, y: h - 40, w: 40, h: 40 },
+                { type: 'stone', x: w * 0.95, y: h - 40, w: 20, h: 80 },
+                { type: 'wood', x: w * 0.85, y: h - 90, w: 140, h: 20 },
+                { type: 'enemy', x: w * 0.8, y: h - 120, r: 15 },
+                { type: 'enemy', x: w * 0.9, y: h - 120, r: 15 }
+            ]},
+            5: { name: "Final Battle", birds: 5, enemies: 3, build: (w, h) => [
+                { type: 'stone', x: w * 0.7, y: h - 40, w: 30, h: 80 },
+                { type: 'wood', x: w * 0.8, y: h - 40, w: 20, h: 80 },
+                { type: 'stone', x: w * 0.9, y: h - 40, w: 30, h: 80 },
+                { type: 'tnt', x: w * 0.8, y: h - 90, w: 40, h: 40 },
+                { type: 'wood', x: w * 0.7, y: h - 110, w: 60, h: 20 },
+                { type: 'wood', x: w * 0.9, y: h - 110, w: 60, h: 20 },
+                { type: 'enemy', x: w * 0.8, y: h - 130, r: 15 },
+                { type: 'enemy', x: w * 0.7, y: h - 150, r: 15 },
+                { type: 'enemy', x: w * 0.9, y: h - 150, r: 15 }
+            ]}
+        };
+
+        function initPhysics() {
+            engine = Engine.create();
+            world = engine.world;
+            engine.gravity.y = 1;
+
+            render = Render.create({
+                canvas: canvas,
+                engine: engine,
+                options: {
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    wireframes: false,
+                    background: '#87CEEB'
+                }
+            });
+            Render.run(render);
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            state.isPlaying = false;
+            if(id === 'level-select') updateLevelSelectUI();
+            if(id === 'settings') loadSettingsUI();
+        }
+
+        function hideAllScreens() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        }
+
+        function updateLevelSelectUI() {
+            const grid = document.getElementById('level-grid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                const btn = document.createElement('div');
+                const isLocked = i > maxUnlockedLevel;
+                btn.className = `level-btn ${isLocked ? 'locked' : ''}`;
+                
+  
